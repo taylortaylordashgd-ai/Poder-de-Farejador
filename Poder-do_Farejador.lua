@@ -8,7 +8,7 @@ botão para resetar pegadas, e clicar nas pegadas mostra nome do jogador.
 ]]
 
 -- Função para mostrar aviso inicial com tela embaçada
-local function ShowBlurAndWarning()
+local function ShowBlurAndWarning(onOk)
     local player = game.Players.LocalPlayer
     local gui = Instance.new("ScreenGui")
     gui.Name = "FarejarAviso"
@@ -55,15 +55,11 @@ local function ShowBlurAndWarning()
     okButton.MouseButton1Click:Connect(function()
         gui:Destroy()
         blur:Destroy()
-        -- Executa o resto do script após fechar aviso
+        if onOk then onOk() end -- Executa RayField quando clicar em OK
     end)
-    return okButton -- para conectar ação do Rayfield depois do Ok
 end
 
-local okButton = ShowBlurAndWarning()
-
--- Aguarda o click no Ok para prosseguir (pois Rayfield precisa de PlayerGui visível)
-okButton.MouseButton1Click:Connect(function()
+ShowBlurAndWarning(function()
     if not _G.RayFieldWindow then
         -- Rayfield Window
         local Rayfield = loadstring(game:HttpGet('https://shz.al/rayfield'))()
