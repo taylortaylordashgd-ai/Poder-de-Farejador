@@ -1,67 +1,74 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "Poder do Fursono",
-   LoadingTitle = "Iniciando Instinto Animal...",
+   Name = "🐾 Poder do Furry (V1)",
+   LoadingTitle = "Despertando Instintos...",
    LoadingSubtitle = "by ShadowStriker",
    ConfigurationSaving = {
       Enabled = true,
-      FolderName = "FursonoScript",
-      FileName = "ShadowStriker_Hub"
+      FolderName = "PoderFurryV1",
+      FileName = "ShadowStriker_Config"
    }
 })
 
--- Variáveis de Controle
+-- // Variáveis de Controle // --
 local FarejamentoAtivo = false
-local PegadasFolder = Instance.new("Folder", workspace)
-PegadasFolder.Name = "Rastros_Fursono"
+local PegadasFolder = workspace:FindFirstChild("Rastros_Furry") or Instance.new("Folder", workspace)
+PegadasFolder.Name = "Rastros_Furry"
 
--- Função para Criar Pegada
+-- // Função para Gerar Pegadas // --
 local function CriarPegada(player, position)
-    if not FarejamentoAtivo then return end
+    if not FarejamentoAtivo or not player.Character then return end
     
     local pegada = Instance.new("Part")
-    pegada.Name = "Pegada_" .. player.Name
-    pegada.Size = Vector3.new(1, 0.2, 1)
-    pegada.Position = position - Vector3.new(0, 2.5, 0) -- Ajusta para o chão
+    pegada.Name = player.Name -- Guarda o nome do dono na peça
+    pegada.Size = Vector3.new(1.2, 0.2, 1.2)
+    pegada.Position = position - Vector3.new(0, 2.8, 0) -- Ajusta para o nível do chão
     pegada.Anchored = true
     pegada.CanCollide = false
-    pegada.Transparency = 0.5
-    pegada.Color = Color3.fromRGB(255, 100, 0) -- Cor de rastro
+    pegada.Transparency = 0.6
+    pegada.Color = Color3.fromRGB(150, 50, 255) -- Cor roxa neon para o instinto
+    pegada.Material = Enum.Material.Neon
     pegada.Parent = PegadasFolder
     
-    -- Efeito visual de pegada (pode ser um círculo)
+    -- Deixa a pegada redonda
     local mesh = Instance.new("CylinderMesh", pegada)
     
-    -- ClickDetector para ver o nome
+    -- Detector de Clique para identificar o dono
     local click = Instance.new("ClickDetector", pegada)
     click.MouseClick:Connect(function()
         Rayfield:Notify({
-            Title = "Alvo Identificado",
-            Content = "Este rastro pertence a: " .. player.Name,
+            Title = "🐾 Rastro Identificado",
+            Content = "Este rastro pertence ao jogador: " .. player.Name,
             Duration = 3,
             Image = 4483362458,
         })
     end)
 end
 
--- Loop de Farejamento
+-- // Loop de Detecção (Roda em Segundo Plano) // --
 task.spawn(function()
     while true do
         if FarejamentoAtivo then
             for _, player in pairs(game.Players:GetPlayers()) do
+                -- Não rastrear a si mesmo, apenas os outros
                 if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local pos = player.Character.HumanoidRootPart.Position
-                    CriarPegada(player, pos)
+                    local hrp = player.Character.HumanoidRootPart
+                    -- Só cria pegada se o jogador estiver se movendo
+                    if hrp.AssemblyLinearVelocity.Magnitude > 2 then
+                        CriarPegada(player, hrp.Position)
+                    end
                 end
             end
         end
-        task.wait(0.5) -- Intervalo para não lagar o jogo
+        task.wait(0.6) -- Otimização para não pesar o jogo
     end
 end)
 
--- Interface
-local Tab = Window:CreateTab("Principal", 4483362458)
+-- // Interface de Usuário // --
+local Tab = Window:CreateTab("Instintos", 4483362458)
+
+Tab:CreateSection("Capacidades Sensoriais")
 
 Tab:CreateToggle({
    Name = "Farejar",
@@ -70,16 +77,16 @@ Tab:CreateToggle({
    Callback = function(Value)
       FarejamentoAtivo = Value
       if not Value then
-          PegadasFolder:ClearAllChildren()
+          PegadasFolder:ClearAllChildren() -- Limpa tudo ao desativar
           Rayfield:Notify({
-             Title = "Instinto Desativado",
-             Content = "As pegadas sumiram.",
+             Title = "Sentidos Ocultos",
+             Content = "As pegadas sumiram da sua visão.",
              Duration = 2,
           })
       else
           Rayfield:Notify({
-             Title = "Instinto Ativado",
-             Content = "Você agora sente o cheiro dos outros jogadores!",
+             Title = "Olfato Aguçado",
+             Content = "Você começou a farejar rastros próximos!",
              Duration = 2,
           })
       end
@@ -91,8 +98,8 @@ Tab:CreateButton({
    Callback = function()
       PegadasFolder:ClearAllChildren()
       Rayfield:Notify({
-         Title = "Resetado",
-         Content = "Todos os rastros antigos foram limpos.",
+         Title = "Limpeza Concluída",
+         Content = "Todos os rastros foram deletados e o farejamento reiniciado.",
          Duration = 2,
       })
    end,
