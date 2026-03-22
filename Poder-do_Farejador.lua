@@ -7,13 +7,30 @@ local window = Rayfield:CreateWindow({
     LoadingTitle = "Poder do Furry",
     LoadingSubtitle = "by ShadowStriker",
     ConfigurationSaving = {
-        Enabled = false
+        Enabled = false,
+        FolderName = nil,
+        FileName = "PoderDoFurryConfig"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "",
+        RememberJoins = false
+    },
+    KeySystem = false,
+    KeySettings = {
+        Title = "",
+        Subtitle = "",
+        Note = "",
+        FileName = "",
+        SaveKey = false,
+        GrabKeyFromSite = false,
+        Key = ""
     }
 })
 
 local furryTab = window:CreateTab({
     Name = "Furry",
-    Icon = "rbxassetid://3926305904",
+    Icon = "rbxassetid://3926307971", -- ícone de lobo/animal, você pode trocar se quiser
     PremiumOnly = false
 })
 
@@ -21,14 +38,13 @@ local playerService = game:GetService("Players")
 local runService = game:GetService("RunService")
 local localPlayer = playerService.LocalPlayer
 
-local enabled = false
+local sniffEnabled = false
 local connections = {}
 local allSpheres = {}
 
--- Função para criar uma esfera achatada pequena no chão
 local function createSphere(position, playerName)
     local sphere = Instance.new("Part")
-    sphere.Name = "PlayerSphere"
+    sphere.Name = "PlayerFootprint"
     sphere.Shape = Enum.PartType.Ball
     sphere.Size = Vector3.new(1.4, 0.2, 1.4)
     sphere.Position = Vector3.new(position.X, position.Y + 0.1, position.Z)
@@ -38,10 +54,12 @@ local function createSphere(position, playerName)
     sphere.Material = Enum.Material.Neon
     sphere.TopSurface = Enum.SurfaceType.Smooth
 
-    -- Sistema de click para mostrar o nome
     local clickDetector = Instance.new("ClickDetector", sphere)
     clickDetector.MouseClick:Connect(function()
+        -- Já impede múltiplos billboards
+        if sphere:FindFirstChild("ShowNameGui") then return end
         local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ShowNameGui"
         billboard.Size = UDim2.new(0,110,0,36)
         billboard.Adornee = sphere
         billboard.Parent = sphere
@@ -51,10 +69,10 @@ local function createSphere(position, playerName)
         txt.Parent = billboard
         txt.Size = UDim2.new(1,0,1,0)
         txt.Text = playerName
+        txt.TextColor3 = Color3.fromRGB(255,255,86)
         txt.BackgroundTransparency = 1
         txt.TextStrokeTransparency = 0
         txt.TextScaled = true
-        txt.TextColor3 = Color3.fromRGB(255,255,86)
 
         wait(2)
         billboard:Destroy()
@@ -64,47 +82,35 @@ local function createSphere(position, playerName)
     table.insert(allSpheres, sphere)
 end
 
--- Função para rastrear jogadores e criar as esferas achatadas
-local function startSphereSystem()
-    local trackTable = {}
-
-    -- Monitorar todos os jogadores menos o localplayer
-    for _,plr in pairs(playerService:GetPlayers()) do
-        if plr ~= localPlayer and plr.Character then
-            local humanoidRootPart = plr.Character:FindFirstChild("HumanoidRootPart")
-            if humanoidRootPart then
-                trackTable[plr] = humanoidRootPart.Position
-            end
-        end
-    end
-
-    connections["SphereRun"] = runService.Heartbeat:Connect(function()
-        if not enabled then return end
+local function startSniffer()
+    local lastPosition = {}
+    connections["SniffHeartbeat"] = runService.Heartbeat:Connect(function()
         for _,plr in pairs(playerService:GetPlayers()) do
             if plr ~= localPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
                 local root = plr.Character.HumanoidRootPart
-                local oldPos = trackTable[plr]
-                if oldPos == nil or (root.Position - oldPos).magnitude > 2 then
-                    -- Cria esfera achatada onde o player passou
-                    createSphere(Vector3.new(root.Position.X, workspace.FallenPartsDestroyHeight+0.5, root.Position.Z), plr.DisplayName or plr.Name)
-                    trackTable[plr] = root.Position
+                local oldPos = lastPosition[plr]
+                local newPos = root.Position
+
+                if not oldPos or (newPos - oldPos).magnitude > 2 then
+                    createSphere(Vector3.new(root.Position.X, workspace.FallenPartsDestroyHeight+2, root.Position.Z), plr.DisplayName or plr.Name)
+                    lastPosition[plr] = newPos
                 end
             end
         end
     end)
 
-    connections["PlayerAdded"] = playerService.PlayerAdded:Connect(function(plr)
+    -- Para novos jogadores
+    connections["SniffPlayerAdded"] = playerService.PlayerAdded:Connect(function(plr)
         plr.CharacterAdded:Connect(function(char)
             wait(1)
-            local root = char:FindFirstChild("HumanoidRootPart")
-            if root then
-                trackTable[plr] = root.Position
+            if char:FindFirstChild("HumanoidRootPart") then
+                lastPosition[plr] = char.HumanoidRootPart.Position
             end
         end)
     end)
 end
 
-local function stopSphereSystem()
+local function stopSniffer()
     for _,conn in pairs(connections) do
         pcall(function() conn:Disconnect() end)
     end
@@ -118,16 +124,18 @@ local function resetSpheres()
     allSpheres = {}
 end
 
+furryTab:CreateSection({Name = "Poder do Furry - ShadowStriker"})
+
 furryTab:CreateToggle({
     Name = "Farejador",
     CurrentValue = false,
     Flag = "FarejadorToggle",
     Callback = function(Value)
-        enabled = Value
-        if enabled then
-            startSphereSystem()
+        sniffEnabled = Value
+        if sniffEnabled then
+            startSniffer()
         else
-            stopSphereSystem()
+            stopSniffer()
         end
     end
 })
