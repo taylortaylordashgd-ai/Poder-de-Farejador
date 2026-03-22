@@ -1,4 +1,3 @@
-
 -- Carregue o Rayfield UI Library (se não estiver carregado, adicione a linha abaixo no início do seu executor principal)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
@@ -268,9 +267,3 @@ mostrarAviso(function()
         end
     })
 end)
-
-
-
-
-
-
