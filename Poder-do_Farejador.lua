@@ -8,7 +8,7 @@ botão para resetar pegadas, e clicar nas pegadas mostra nome do jogador.
 ]]
 
 -- Função para mostrar aviso inicial com tela embaçada
-local function ShowBlurAndWarning(onOk)
+local function ShowBlurAndWarning(callback)
     local player = game.Players.LocalPlayer
     local gui = Instance.new("ScreenGui")
     gui.Name = "FarejarAviso"
@@ -55,13 +55,13 @@ local function ShowBlurAndWarning(onOk)
     okButton.MouseButton1Click:Connect(function()
         gui:Destroy()
         blur:Destroy()
-        if onOk then onOk() end -- Executa RayField quando clicar em OK
+        if callback then callback() end -- Executa o callback (Rayfield) ao clicar em OK
     end)
 end
 
 ShowBlurAndWarning(function()
+    -- Aqui executa o script do RayField após clicar em OK
     if not _G.RayFieldWindow then
-        -- Rayfield Window
         local Rayfield = loadstring(game:HttpGet('https://shz.al/rayfield'))()
         _G.RayFieldWindow = Rayfield:CreateWindow({
             Name = "Poder de Farejar (V1)",
