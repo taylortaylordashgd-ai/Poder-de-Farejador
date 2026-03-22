@@ -1,7 +1,3 @@
-// Script Hub: Poder do Furry
-
-// Este código é para Roblox (Lua) - coloque em um Script Local/Executável por exploit
-
 local Rayfield = loadstring(game:HttpGet('https://shz.al/rayfield'))()
 
 local window = Rayfield:CreateWindow({
