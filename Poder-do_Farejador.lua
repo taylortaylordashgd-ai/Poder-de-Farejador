@@ -1,156 +1,101 @@
---[[
-Script: Poder do Furs0n0 V1
-Criador: ShadowStriker
-
-- Aba: Furry
-- Opção: "Farejar" (toggle)
-    - Ativa/desativa esferas aparecendo onde jogadores caminham.
-    - Esferas pequenas embaixo dos jogadores e vão ficando no chão conforme andam.
-    - Se clicar na esfera, aparece o nome do jogador que criou.
-- Opção: "Resetar o farejar"
-    - Deleta todas as esferas.
---]]
-
--- Carregar Rayfield GUI
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Poder do Furs0n0 V1",
-    LoadingTitle = "Poder do Furs0n0",
-    LoadingSubtitle = "by ShadowStriker",
-    ConfigurationSaving = {
-       Enabled = false,
-       FolderName = nil,
-       FileName = "PoderDoFurryConfig"
-    },
+   Name = "Poder do Fursono",
+   LoadingTitle = "Iniciando Instinto Animal...",
+   LoadingSubtitle = "by ShadowStriker",
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = "FursonoScript",
+      FileName = "ShadowStriker_Hub"
+   }
 })
 
--- ABA "Furry"
-local FurryTab = Window:CreateTab({
-    Name = "Furry",
-    Icon = "rbxassetid://0",
-    PremiumOnly = false
-})
+-- Variáveis de Controle
+local FarejamentoAtivo = false
+local PegadasFolder = Instance.new("Folder", workspace)
+PegadasFolder.Name = "Rastros_Fursono"
 
--- Variáveis de controle
-local FarejarAtivo = false
-local EsferasFolder = Instance.new("Folder")
-EsferasFolder.Name = "EsferasFarejar"
-EsferasFolder.Parent = workspace
-
-local connections = {}
-
-local function criarEsfera(pos, nomeJogador)
-    local esfera = Instance.new("Part")
-    esfera.Shape = Enum.PartType.Ball
-    esfera.Size = Vector3.new(0.8, 0.8, 0.8)
-    esfera.Position = Vector3.new(pos.X, pos.Y + 0.3, pos.Z)
-    esfera.Anchored = true
-    esfera.CanCollide = false
-    esfera.Material = Enum.Material.Neon
-    esfera.Color = Color3.fromRGB(170, 85, 255)
-    esfera.Transparency = 0.3
-    esfera.Parent = EsferasFolder
-    esfera.Name = "FarejarEsfera_"..(nomeJogador or "Desconhecido")
-    -- Click detector para mostrar nome do jogador
-    local click = Instance.new("ClickDetector")
-    click.Parent = esfera
-    click.MouseClick:Connect(function(plr)
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Farejador",
-            Text = "Pegada de: "..tostring(nomeJogador),
-            Duration = 2
+-- Função para Criar Pegada
+local function CriarPegada(player, position)
+    if not FarejamentoAtivo then return end
+    
+    local pegada = Instance.new("Part")
+    pegada.Name = "Pegada_" .. player.Name
+    pegada.Size = Vector3.new(1, 0.2, 1)
+    pegada.Position = position - Vector3.new(0, 2.5, 0) -- Ajusta para o chão
+    pegada.Anchored = true
+    pegada.CanCollide = false
+    pegada.Transparency = 0.5
+    pegada.Color = Color3.fromRGB(255, 100, 0) -- Cor de rastro
+    pegada.Parent = PegadasFolder
+    
+    -- Efeito visual de pegada (pode ser um círculo)
+    local mesh = Instance.new("CylinderMesh", pegada)
+    
+    -- ClickDetector para ver o nome
+    local click = Instance.new("ClickDetector", pegada)
+    click.MouseClick:Connect(function()
+        Rayfield:Notify({
+            Title = "Alvo Identificado",
+            Content = "Este rastro pertence a: " .. player.Name,
+            Duration = 3,
+            Image = 4483362458,
         })
     end)
 end
 
-local function conectarFarejar(player)
-    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-    local lastPos = player.Character.HumanoidRootPart.Position
-
-    local function onMove()
-        if not FarejarAtivo then return end
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-        local pos = hrp.Position
-        if (pos - lastPos).magnitude >= 2 then
-            criarEsfera(Vector3.new(pos.X, workspace.FallenPartsDestroyHeight + 3, pos.Z), player.Name)
-            lastPos = pos
-        end
-    end
-
-    local hrp = player.Character.HumanoidRootPart
-    criarEsfera(Vector3.new(hrp.Position.X, workspace.FallenPartsDestroyHeight + 3, hrp.Position.Z), player.Name)
-
-    connections[player] = hrp:GetPropertyChangedSignal("Position"):Connect(onMove)
-end
-
-local function conectarTodosJogadores()
-    for _, plr in pairs(game.Players:GetPlayers()) do
-        if connections[plr] then
-            connections[plr]:Disconnect()
-            connections[plr] = nil
-        end
-        conectarFarejar(plr)
-        if not connections[plr.."_char"] then
-            connections[plr.."_char"] = plr.CharacterAdded:Connect(function()
-                wait(0.1)
-                conectarFarejar(plr)
-            end)
-        end
-    end
-end
-
-local function desconectarFarejar()
-    for plr,conn in pairs(connections) do
-        if typeof(conn) == "RBXScriptConnection" then
-            conn:Disconnect()
-        end
-    end
-    connections = {}
-end
-
-local function resetarEsferas()
-    for _, esfera in pairs(EsferasFolder:GetChildren()) do
-        if esfera:IsA("Part") then
-            esfera:Destroy()
-        end
-    end
-end
-
--- OPÇÃO: Farejar [TOGGLE]
-FurryTab:CreateToggle({
-    Name = "Farejar",
-    CurrentValue = false,
-    Flag = "FurryFarejar_Toggle",
-    Callback = function(Value)
-        FarejarAtivo = Value
-        if FarejarAtivo then
-            conectarTodosJogadores()
-            -- Conectar para novos jogadores
-            if not connections["playerAdded"] then
-                connections["playerAdded"] = game.Players.PlayerAdded:Connect(function(plr)
-                    conectarFarejar(plr)
-                    if not connections[plr.."_char"] then
-                        connections[plr.."_char"] = plr.CharacterAdded:Connect(function()
-                            wait(0.1)
-                            conectarFarejar(plr)
-                        end)
-                    end
-                end)
+-- Loop de Farejamento
+task.spawn(function()
+    while true do
+        if FarejamentoAtivo then
+            for _, player in pairs(game.Players:GetPlayers()) do
+                if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local pos = player.Character.HumanoidRootPart.Position
+                    CriarPegada(player, pos)
+                end
             end
-        else
-            desconectarFarejar()
         end
+        task.wait(0.5) -- Intervalo para não lagar o jogo
     end
+end)
+
+-- Interface
+local Tab = Window:CreateTab("Principal", 4483362458)
+
+Tab:CreateToggle({
+   Name = "Farejar",
+   CurrentValue = false,
+   Flag = "FarejarToggle",
+   Callback = function(Value)
+      FarejamentoAtivo = Value
+      if not Value then
+          PegadasFolder:ClearAllChildren()
+          Rayfield:Notify({
+             Title = "Instinto Desativado",
+             Content = "As pegadas sumiram.",
+             Duration = 2,
+          })
+      else
+          Rayfield:Notify({
+             Title = "Instinto Ativado",
+             Content = "Você agora sente o cheiro dos outros jogadores!",
+             Duration = 2,
+          })
+      end
+   end,
 })
 
--- OPÇÃO: Resetar o farejar [BUTTON]
-FurryTab:CreateButton({
-    Name = "Resetar o farejar",
-    Callback = function()
-        resetarEsferas()
-    end
+Tab:CreateButton({
+   Name = "Resetar o farejamento",
+   Callback = function()
+      PegadasFolder:ClearAllChildren()
+      Rayfield:Notify({
+         Title = "Resetado",
+         Content = "Todos os rastros antigos foram limpos.",
+         Duration = 2,
+      })
+   end,
 })
 
-
+Rayfield:LoadConfiguration()
