@@ -1,104 +1,128 @@
---[[
-Poder do Furry - Redz Hub by ShadowStriker
-]]
+// Script Hub: Poder do Furry
 
--- Inicialização do UI
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local PlayerService = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local LocalPlayer = PlayerService.LocalPlayer
+// Este código é para Roblox (Lua) - coloque em um Script Local/Executável por exploit
 
-local FarejadorAtivo = false
-local pegadasCriadas = {} -- Armazena todas as pegadas criadas
+local Rayfield = loadstring(game:HttpGet('https://shz.al/rayfield'))()
 
--- Janela principal
-local Janela = Rayfield:CreateWindow({
+local window = Rayfield:CreateWindow({
     Name = "Poder do Furry",
     LoadingTitle = "Poder do Furry",
     LoadingSubtitle = "by ShadowStriker",
     ConfigurationSaving = {
         Enabled = false,
         FolderName = nil,
-        FileName = "PoderDoFurryConfig"
+        FileName = "FurryConfig"
     }
 })
 
--- Aba Furry
-local FurryTab = Janela:CreateTab({
+local furryTab = window:CreateTab({
     Name = "Furry",
-    Icon = "rbxassetid://14851149216",
+    Icon = "rbxassetid://0", -- Substitua se quiser um ícone
     PremiumOnly = false
 })
 
--- Função para criar pegada
-local function criarPegada(posicao)
+local FarejadorAtivo = false
+local PegadasFolder = nil
+local PegadaCons = {}
+
+local function criarPegada(pos, jogador)
+    if not PegadasFolder then
+        PegadasFolder = Instance.new("Folder", workspace)
+        PegadasFolder.Name = "FurryPegadas"
+    end
     local pegada = Instance.new("Part")
-    pegada.Size = Vector3.new(0.8, 0.2, 1.2)
+    pegada.Size = Vector3.new(1.5,0.2,2)
+    pegada.Position = pos + Vector3.new(0,0.1,0)
     pegada.Anchored = true
     pegada.CanCollide = false
     pegada.Material = Enum.Material.SmoothPlastic
-    pegada.BrickColor = BrickColor.new("Medium stone grey")
-    pegada.Transparency = 0.2
-    pegada.CFrame = CFrame.new(posicao) * CFrame.Angles(math.pi/2,0,0)
-    pegada.Parent = Workspace
-    -- Opcional: decal/mesh para formato mais visual
-    table.insert(pegadasCriadas, pegada)
+    pegada.BrickColor = BrickColor.new("Bright violet")
+    pegada.Transparency = 0.4
+    pegada.Name = jogador.Name .. "_FurryPegada"
+    -- Opcional: clique mostra quem deixou a pegada
+    local click = Instance.new("ClickDetector", pegada)
+    click.MouseClick:Connect(function(plr)
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Pegada de Furry!",
+            Text = "Pegada de: " .. jogador.Name,
+            Duration = 2
+        })
+    end)
+    pegada.Parent = PegadasFolder
 end
-
--- Função para remover todas pegadas criadas
-local function limparPegadas()
-    for _, pegada in ipairs(pegadasCriadas) do
-        if pegada and pegada.Parent then
-            pegada:Destroy()
-        end
-    end
-    pegadasCriadas = {}
-end
-
--- Pegadas por player
-local ultimoPasso = {}
-
--- Loop do Farejador
-local farejadorConexao = nil
 
 local function ativarFarejador()
-    if farejadorConexao then return end
-    farejadorConexao = RunService.Heartbeat:Connect(function()
-        for _, player in ipairs(PlayerService:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local hrp = player.Character.HumanoidRootPart
-                local ultimaPos = ultimoPasso[player]
-                if not ultimaPos or (hrp.Position - ultimaPos).magnitude > 2 then -- nova posição? (cada 2 studs)
-                    criarPegada(hrp.Position - Vector3.new(0, hrp.Size.Y/2 + 0.1, 0))
-                    ultimoPasso[player] = hrp.Position
+    if not PegadasFolder then
+        PegadasFolder = Instance.new("Folder", workspace)
+        PegadasFolder.Name = "FurryPegadas"
+    end
+    FarejadorAtivo = true
+    for _, jogador in ipairs(game.Players:GetPlayers()) do
+        if jogador.Character and jogador.Character:FindFirstChild("HumanoidRootPart") then
+            local lastPos = jogador.Character.HumanoidRootPart.Position
+            PegadaCons[jogador] = jogador.Character.HumanoidRootPart:GetPropertyChangedSignal("Position"):Connect(function()
+                if FarejadorAtivo then
+                    local pos = jogador.Character.HumanoidRootPart.Position
+                    if (pos - lastPos).magnitude > 4 then -- só põe se andou
+                        criarPegada(pos, jogador)
+                        lastPos = pos
+                    end
                 end
-            end
+            end)
         end
+        -- Garante pegar se personagem respawnar
+        jogador.CharacterAdded:Connect(function(char)
+            char:WaitForChild("HumanoidRootPart")
+            local lastPos = char.HumanoidRootPart.Position
+            PegadaCons[jogador] = char.HumanoidRootPart:GetPropertyChangedSignal("Position"):Connect(function()
+                if FarejadorAtivo then
+                    local pos = char.HumanoidRootPart.Position
+                    if (pos - lastPos).magnitude > 4 then
+                        criarPegada(pos, jogador)
+                        lastPos = pos
+                    end
+                end
+            end)
+        end)
+    end
+    -- Pega jogadores que entrarem depois
+    game.Players.PlayerAdded:Connect(function(jogador)
+        jogador.CharacterAdded:Connect(function(char)
+            char:WaitForChild("HumanoidRootPart")
+            local lastPos = char.HumanoidRootPart.Position
+            PegadaCons[jogador] = char.HumanoidRootPart:GetPropertyChangedSignal("Position"):Connect(function()
+                if FarejadorAtivo then
+                    local pos = char.HumanoidRootPart.Position
+                    if (pos - lastPos).magnitude > 4 then
+                        criarPegada(pos, jogador)
+                        lastPos = pos
+                    end
+                end
+            end)
+        end)
     end)
 end
 
 local function desativarFarejador()
-    if farejadorConexao then
-        farejadorConexao:Disconnect()
-        farejadorConexao = nil
+    FarejadorAtivo = false
+    -- Apenas desconecta sinais, as pegadas permanecem no chão como solicitado
+    for jogador,conn in pairs(PegadaCons) do
+        if conn then
+            conn:Disconnect()
+        end
     end
-    ultimoPasso = {}
-    limparPegadas()
+    PegadaCons = {}
 end
 
--- Toggle na UI
-FurryTab:CreateToggle({
+furryTab:CreateToggle({
     Name = "Farejador",
     CurrentValue = false,
-    Flag = "FarejadorToggle",
-    Callback = function(value)
-        FarejadorAtivo = value
-        if FarejadorAtivo then
+    Flag = "FurryFarejador",
+    Callback = function(ativo)
+        if ativo then
             ativarFarejador()
         else
             desativarFarejador()
         end
-    end,
-    Info = "Ativa ou desativa o poder de farejar: veja as pegadas dos jogadores por onde eles passaram."
+    end
 })
