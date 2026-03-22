@@ -25,13 +25,14 @@ local Window = Rayfield:CreateWindow({
     },
 })
 
+-- ABA "Furry"
 local FurryTab = Window:CreateTab({
     Name = "Furry",
     Icon = "rbxassetid://0",
     PremiumOnly = false
 })
 
--- Controle principal
+-- Variáveis de controle
 local FarejarAtivo = false
 local EsferasFolder = Instance.new("Folder")
 EsferasFolder.Name = "EsferasFarejar"
@@ -64,9 +65,7 @@ local function criarEsfera(pos, nomeJogador)
 end
 
 local function conectarFarejar(player)
-    -- Ignorar se não tem personagem ainda
     if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-    -- Última posição marcada de esfera (para não spammar demais)
     local lastPos = player.Character.HumanoidRootPart.Position
 
     local function onMove()
@@ -74,17 +73,15 @@ local function conectarFarejar(player)
         local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
         local pos = hrp.Position
-        if (pos - lastPos).magnitude >= 2 then -- espaçamento mínimo entre esferas
-            criarEsfera(Vector3.new(pos.X, workspace.FallenPartsDestroyHeight + 3, pos.Z), player.Name) -- manter sempre no chão
+        if (pos - lastPos).magnitude >= 2 then
+            criarEsfera(Vector3.new(pos.X, workspace.FallenPartsDestroyHeight + 3, pos.Z), player.Name)
             lastPos = pos
         end
     end
 
-    -- Põe imediatamente uma esfera ao ativar
     local hrp = player.Character.HumanoidRootPart
     criarEsfera(Vector3.new(hrp.Position.X, workspace.FallenPartsDestroyHeight + 3, hrp.Position.Z), player.Name)
 
-    -- Conexão para as próximas esferas quando andar
     connections[player] = hrp:GetPropertyChangedSignal("Position"):Connect(onMove)
 end
 
@@ -95,7 +92,6 @@ local function conectarTodosJogadores()
             connections[plr] = nil
         end
         conectarFarejar(plr)
-        -- Se morrer ou respawnar personagem
         if not connections[plr.."_char"] then
             connections[plr.."_char"] = plr.CharacterAdded:Connect(function()
                 wait(0.1)
@@ -122,7 +118,7 @@ local function resetarEsferas()
     end
 end
 
--- Farejar Toggle
+-- OPÇÃO: Farejar [TOGGLE]
 FurryTab:CreateToggle({
     Name = "Farejar",
     CurrentValue = false,
@@ -149,11 +145,12 @@ FurryTab:CreateToggle({
     end
 })
 
--- Botão de resetar
+-- OPÇÃO: Resetar o farejar [BUTTON]
 FurryTab:CreateButton({
     Name = "Resetar o farejar",
     Callback = function()
         resetarEsferas()
     end
 })
+
 
