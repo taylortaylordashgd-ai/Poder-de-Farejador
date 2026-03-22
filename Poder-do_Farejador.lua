@@ -1,12 +1,10 @@
 
--- Carregue o Rayfield UI Library (supondo que já foi carregado em outro lugar)
+-- Carregue o Rayfield UI Library (se não estiver carregado, adicione a linha abaixo no início do seu executor principal)
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local StarterGui = game:GetService("StarterGui")
 local Lighting = game:GetService("Lighting")
 
 local PegadasFolder = Instance.new("Folder")
@@ -15,86 +13,106 @@ PegadasFolder.Parent = workspace
 
 local farejadorAtivo = false
 local connections = {}
-local pegadaRefs = {} -- Usado para controlar todas as pegadas criadas
+local pegadasPorJogador = {}
+local controleUltimaPos = {}
+local pegadaRefs = {}
 
 -- Função para criar a pegada
 local function criarPegada(jogador)
-    if not jogador.Character or not jogador.Character:FindFirstChild("HumanoidRootPart") then return end
+    if not jogador or not jogador.Character or not jogador.Character:FindFirstChild("HumanoidRootPart") then return end
     local pos = jogador.Character.HumanoidRootPart.Position
 
     local pegada = Instance.new("Part")
     pegada.Shape = Enum.PartType.Ball
     pegada.Name = "Pegada_"..jogador.Name
-    pegada.Size = Vector3.new(0.7, 0.3, 1.2)
+    pegada.Size = Vector3.new(0.9, 0.3, 1.5)
     pegada.CanCollide = false
     pegada.Anchored = true
     pegada.Material = Enum.Material.SmoothPlastic
-    pegada.Color = Color3.fromRGB(175, 175, 210)
-    pegada.Transparency = 0.5
-    pegada.Position = Vector3.new(pos.X, pos.Y - 2.4, pos.Z)
+    pegada.Color = Color3.fromRGB(140, 180, 255)
+    pegada.Transparency = 0.6
+    pegada.Position = Vector3.new(pos.X, pos.Y - 2.3, pos.Z)
     pegada.Parent = PegadasFolder
 
-    -- Deixar achatada no chão
+    -- Achatada (escala esfera)
     local mesh = Instance.new("SpecialMesh", pegada)
     mesh.MeshType = Enum.MeshType.Sphere
-    mesh.Scale = Vector3.new(1.2, 0.28, 2.1)
+    mesh.Scale = Vector3.new(1.25, 0.28, 2.1)
 
     -- Clique para mostrar nome
     local click = Instance.new("ClickDetector", pegada)
-    click.MaxActivationDistance = 12
+    click.MaxActivationDistance = 15
     click.MouseClick:Connect(function(plr)
         if plr == LocalPlayer then
             local gui = Instance.new("BillboardGui")
-            gui.Size = UDim2.new(0, 140, 0, 32)
+            gui.Size = UDim2.new(0, 167, 0, 36)
             gui.Adornee = pegada
             gui.Parent = pegada
-            gui.StudsOffset = Vector3.new(0, 1, 0)
+            gui.StudsOffset = Vector3.new(0, 0.8, 0)
             gui.AlwaysOnTop = true
 
             local txt = Instance.new("TextLabel", gui)
             txt.BackgroundTransparency = 1
             txt.Size = UDim2.new(1,0,1,0)
             txt.Text = "Jogador: "..jogador.Name
-            txt.TextStrokeTransparency = 0.1
+            txt.TextStrokeTransparency = 0.08
             txt.TextColor3 = Color3.fromRGB(255,255,255)
             txt.Font = Enum.Font.FredokaOne
             txt.TextScaled = true
 
-            delay(1.2, function() if gui then gui:Destroy() end end)
+            delay(1.1, function() if gui then gui:Destroy() end end)
         end
     end)
 
     -- Guardar referência para facilitar reset
     table.insert(pegadaRefs, pegada)
+    pegadasPorJogador[jogador] = pegadasPorJogador[jogador] or {}
+    table.insert(pegadasPorJogador[jogador], pegada)
 end
 
--- Função de update das pegadas dos jogadores
+local function desconectarMovimento()
+    for k, v in pairs(connections) do
+        if typeof(v) == "RBXScriptConnection" and v.Connected then
+            v:Disconnect()
+        end
+    end
+    connections = {}
+    controleUltimaPos = {}
+end
+
+-- Gera pegada a cada X studs de distância
+local passo = 2.7
 local function ativarModoFarejador()
     farejadorAtivo = true
 
+    desconectarMovimento()
+
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
-            -- Conexão de movimento para cada jogador
             connections[player] = RunService.Heartbeat:Connect(function()
+                if not farejadorAtivo then return end
                 if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    -- Marcar rastro ~cada X studs
-                    local ultima = pegadaRefs[#pegadaRefs]
-                    if not ultima or (player.Character.HumanoidRootPart.Position - ultima.Position).magnitude > 2 then
+                    local pos = player.Character.HumanoidRootPart.Position
+                    local ultimaPos = controleUltimaPos[player]
+                    if not ultimaPos or (pos - ultimaPos).Magnitude > passo then
                         criarPegada(player)
+                        controleUltimaPos[player] = pos
                     end
                 end
             end)
         end
     end
 
-    -- Detectar novos jogadores entrando
     connections["_newPlayer"] = Players.PlayerAdded:Connect(function(player)
         if player ~= LocalPlayer then
             connections[player] = RunService.Heartbeat:Connect(function()
+                if not farejadorAtivo then return end
                 if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local ultima = pegadaRefs[#pegadaRefs]
-                    if not ultima or (player.Character.HumanoidRootPart.Position - ultima.Position).magnitude > 2 then
+                    local pos = player.Character.HumanoidRootPart.Position
+                    local ultimaPos = controleUltimaPos[player]
+                    if not ultimaPos or (pos - ultimaPos).Magnitude > passo then
                         criarPegada(player)
+                        controleUltimaPos[player] = pos
                     end
                 end
             end)
@@ -104,13 +122,7 @@ end
 
 local function desativarModoFarejador()
     farejadorAtivo = false
-    -- Desconecta todos os Heartbeats e conn's
-    for k, v in pairs(connections) do
-        if typeof(v) == "RBXScriptConnection" and v.Connected then
-            v:Disconnect()
-        end
-    end
-    connections = {}
+    desconectarMovimento()
 end
 
 local function resetPegadas()
@@ -119,15 +131,17 @@ local function resetPegadas()
             peg:Destroy()
         end
     end
+    pegadasPorJogador = {}
     pegadaRefs = {}
-    -- Ao resetar, começa a rastrear de novo se estiver ativo
+    controleUltimaPos = {}
+    -- Reinicia rastreamento automático se estiver ativado
     if farejadorAtivo then
         desativarModoFarejador()
         ativarModoFarejador()
     end
 end
 
--- Função para tela embaçada
+-- Embaçado/tela de aviso
 local blur
 local avisoGui
 
@@ -135,7 +149,7 @@ local function iniciarBlur()
     if not Lighting:FindFirstChild("RayField_BlurEffect") then
         blur = Instance.new("BlurEffect")
         blur.Name = "RayField_BlurEffect"
-        blur.Size = 12 -- grau do embaçado
+        blur.Size = 10
         blur.Parent = Lighting
     end
 end
@@ -147,7 +161,6 @@ local function removerBlur()
 end
 
 local function mostrarAviso(callback)
-    -- Criar uma tela cheia + blur ativado
     iniciarBlur()
     if avisoGui then avisoGui:Destroy() end
 
@@ -159,8 +172,8 @@ local function mostrarAviso(callback)
     avisoGui.Parent = game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 
     local fundo = Instance.new("Frame")
-    fundo.BackgroundColor3 = Color3.fromRGB(33, 34, 44)
-    fundo.BackgroundTransparency = 0.35
+    fundo.BackgroundColor3 = Color3.fromRGB(36, 31, 46)
+    fundo.BackgroundTransparency = 0.15
     fundo.BorderSizePixel = 0
     fundo.Size = UDim2.new(1,0,1,0)
     fundo.Position = UDim2.new(0,0,0,0)
@@ -170,14 +183,14 @@ local function mostrarAviso(callback)
     avisoBox.AnchorPoint = Vector2.new(0.5,0.5)
     avisoBox.Position = UDim2.new(0.5,0,0.5,0)
     avisoBox.Size = UDim2.new(0, 420, 0, 180)
-    avisoBox.BackgroundColor3 = Color3.fromRGB(38, 139, 210)
-    avisoBox.BackgroundTransparency = 0.03
+    avisoBox.BackgroundColor3 = Color3.fromRGB(38, 119, 210)
+    avisoBox.BackgroundTransparency = 0.00
     avisoBox.BorderSizePixel = 0
     avisoBox.Parent = fundo
 
     local avisoText = Instance.new("TextLabel")
-    avisoText.Position = UDim2.new(0.08,0,0.18,0)
-    avisoText.Size = UDim2.new(0.84,0,0.4,0)
+    avisoText.Position = UDim2.new(0.095,0,0.179,0)
+    avisoText.Size = UDim2.new(0.81,0,0.45,0)
     avisoText.BackgroundTransparency = 1
     avisoText.Text = [[Os Furrys só usam esse script
 e se você nao é furry 
@@ -192,8 +205,8 @@ você é um teste e ainda pode testar!]]
     okBtn.Text = "Ok"
     okBtn.AnchorPoint = Vector2.new(0.5,0.5)
     okBtn.Position = UDim2.new(0.5, 0, 0.82, 0)
-    okBtn.Size = UDim2.new(0.28,0,0.2,0)
-    okBtn.BackgroundColor3 = Color3.fromRGB(36, 46, 81)
+    okBtn.Size = UDim2.new(0.28,0,0.20,0)
+    okBtn.BackgroundColor3 = Color3.fromRGB(30, 36, 81)
     okBtn.BorderSizePixel = 0
     okBtn.TextColor3 = Color3.fromRGB(255,255,255)
     okBtn.Font = Enum.Font.GothamSemibold
@@ -207,17 +220,17 @@ você é um teste e ainda pode testar!]]
     end)
 end
 
--- Iniciar tela de aviso assim que executa
+-- Executa aviso, depois interface principal
 mostrarAviso(function()
-    -- UI Rayfield só aparece depois que clicar em OK
+    -- Crie janela Rayfield
     local janela = Rayfield:CreateWindow({
         Name = "Poder do Farejador (V1)",
         LoadingTitle = "Poder do Farejador",
         LoadingSubtitle = "by ShadowStriker",
         ConfigurationSaving = {
             Enabled = true,
-            FolderName = "FarejadorConfig",
-            FileName = "Config"
+            FolderName = nil,
+            FileName = "PoderDoFarejadorConfig"
         },
         Discord = {
             Enabled = false,
@@ -226,19 +239,20 @@ mostrarAviso(function()
         }
     })
 
-    local abaPlayer = janela:CreateTab({
+    -- Aba Player
+    local playerTab = janela:CreateTab({
         Name = "Player",
-        Icon = "rbxassetid://0",
+        Icon = "rbxassetid://0", -- pode trocar depois se desejar
         PremiumOnly = false
     })
 
-    -- Alternar Modo Farejador
-    abaPlayer:CreateToggle({
+    -- Toggle modo farejador
+    playerTab:CreateToggle({
         Name = "Modo Farejador",
         CurrentValue = false,
         Flag = "ModoFarejador",
-        Callback = function(state)
-            if state then
+        Callback = function(ativar)
+            if ativar then
                 ativarModoFarejador()
             else
                 desativarModoFarejador()
@@ -246,14 +260,16 @@ mostrarAviso(function()
         end
     })
 
-    -- Reset botão
-    abaPlayer:CreateButton({
+    -- Botão de reset
+    playerTab:CreateButton({
         Name = "Reset Pegadas",
         Callback = function()
             resetPegadas()
         end
     })
 end)
+
+
 
 
 
